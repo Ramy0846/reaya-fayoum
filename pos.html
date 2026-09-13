@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>نظام كاشير المطاعم والكافيهات الذكي - Royal POS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body { font-family: 'Cairo', sans-serif; user-select: none; }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    @media print {
+      body * { visibility: hidden; }
+      #receiptArea, #receiptArea * { visibility: visible; }
+      #receiptArea { position: absolute; left: 0; top: 0; width: 80mm; padding: 5px; }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 h-screen flex flex-col overflow-hidden">
+
+  <!-- TOP BAR -->
+  <header class="bg-slate-900 text-white px-3 py-2 flex items-center justify-between shadow shrink-0">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center text-white font-black text-sm">
+        <i class="fa-solid fa-utensils"></i>
+      </div>
+      <div>
+        <h1 class="font-extrabold text-xs sm:text-sm leading-tight">رويال بوز <span class="text-[10px] bg-emerald-900 text-emerald-300 px-1.5 py-0.5 rounded font-bold">Smart POS</span></h1>
+        <p class="text-[10px] text-slate-400">الفيوم • <span class="text-emerald-400 font-bold">الوردية مفتوحة</span></p>
+      </div>
+    </div>
+
+    <!-- TABS NAVIGATION -->
+    <nav class="flex items-center gap-1 bg-slate-800 p-1 rounded-xl text-xs font-bold overflow-x-auto">
+      <button onclick="tab('pos')" id="t-pos" class="tab-btn px-2.5 py-1 rounded-lg bg-emerald-600 text-white transition flex items-center gap-1.5"><i class="fa-solid fa-cash-register"></i><span>الكاشير</span></button>
+      <button onclick="tab('tables')" id="t-tables" class="tab-btn px-2.5 py-1 rounded-lg text-slate-300 hover:text-white transition flex items-center gap-1.5"><i class="fa-solid fa-chair"></i><span>الصالة</span></button>
+      <button onclick="tab('kds')" id="t-kds" class="tab-btn px-2.5 py-1 rounded-lg text-slate-300 hover:text-white transition flex items-center gap-1.5"><i class="fa-solid fa-bell-concierge"></i><span>المطبخ</span> <span id="kdsCount" class="bg-rose-500 text-white text-[9px] px-1 rounded-full hidden">0</span></button>
+      <button onclick="tab('shifts')" id="t-shifts" class="tab-btn px-2.5 py-1 rounded-lg text-slate-300 hover:text-white transition flex items-center gap-1.5"><i class="fa-solid fa-vault"></i><span>الخزينة</span></button>
+      <button onclick="tab('reports')" id="t-reports" class="tab-btn px-2.5 py-1 rounded-lg text-slate-300 hover:text-white transition flex items-center gap-1.5"><i class="fa-solid fa-chart-line"></i><span>التقارير</span></button>
+    </nav>
+  </header>
+
+  <!-- MAIN VIEWS -->
+  <main class="flex-1 overflow-hidden relative">
+
+    <!-- VIEW 1: POS -->
+    <section id="v-pos" class="h-full flex flex-col md:flex-row overflow-hidden">
+      <!-- PRODUCTS AREA -->
+      <div class="flex-1 flex flex-col h-full bg-slate-50 border-l border-slate-200 overflow-hidden">
+        <!-- TOP ACTIONS -->
+        <div class="p-2 bg-white border-b border-slate-200 flex items-center gap-2 shrink-0">
+          <input type="text" id="posSearch" oninput="renderItems()" placeholder="بحث عن صنف..." class="flex-1 px-3 py-1.5 rounded-xl bg-slate-100 border text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500">
+          <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-xs font-bold shrink-0">
+            <button onclick="setType('dine_in')" id="btn-dine" class="type-btn px-2 py-1 rounded bg-white text-emerald-700 shadow-sm">صالة</button>
+            <button onclick="setType('takeaway')" id="btn-take" class="type-btn px-2 py-1 rounded text-slate-600">سفري</button>
+            <button onclick="setType('delivery')" id="btn-del" class="type-btn px-2 py-1 rounded text-slate-600">دليفري</button>
+          </div>
+        </div>
+
+        <!-- CATEGORIES -->
+        <div class="bg-white px-2 py-1.5 flex gap-1.5 overflow-x-auto shrink-0 border-b border-slate-200" id="catBar"></div>
+
+        <!-- ITEMS GRID -->
+        <div class="flex-1 p-2.5 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2" id="itemsGrid"></div>
+      </div>
+
+      <!-- CART & BILL -->
+      <div class="w-full md:w-80 lg:w-96 bg-white h-full flex flex-col shadow-lg shrink-0 border-t md:border-t-0">
+        <!-- CART HEADER -->
+        <div class="p-2.5 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
+          <div>
+            <h3 class="font-bold text-xs text-slate-800">فاتورة طلب: <span id="cartTypeBadge" class="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded text-[10px]">صالة</span></h3>
+            <p class="text-[10px] text-slate-400">رقم الفاتورة: #<span id="invNumber">101</span> <span id="tblBadge" class="hidden font-bold text-slate-700">(طاولة <span id="tblNum">1</span>)</span></p>
+          </div>
+          <button onclick="clearCart()" class="text-rose-500 text-xs px-2 py-1 rounded hover:bg-rose-50 border border-rose-200"><i class="fa-regular fa-trash-can"></i> مسح</button>
+        </div>
+
+        <!-- CART ITEMS -->
+        <div class="flex-1 overflow-y-auto p-2 space-y-1.5" id="cartList"></div>
+
+        <!-- TOTALS -->
+        <div class="p-2.5 border-t border-slate-200 bg-slate-50 text-xs space-y-1 shrink-0">
+          <div class="flex justify-between text-slate-600"><span>المجموع:</span><span id="subTotalTxt" class="font-bold">0.00 ج.م</span></div>
+          <div class="flex justify-between text-slate-600 items-center">
+            <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="srvChk" checked onchange="calcTotals()"> خدمة صالة (12%):</label>
+            <span id="srvTxt" class="font-bold">0.00 ج.م</span>
+          </div>
+          <div class="flex justify-between text-slate-600 items-center">
+            <span onclick="setDiscount()" class="cursor-pointer text-emerald-700 hover:underline"><i class="fa-solid fa-tag"></i> خصم نقدي:</span>
+            <span id="discTxt" class="font-bold text-rose-600">- 0.00 ج.م</span>
+          </div>
+          <div class="pt-1.5 border-t border-slate-300 flex justify-between items-baseline font-black">
+            <span class="text-sm">الإجمالي النهائي:</span>
+            <span id="totalTxt" class="text-xl text-emerald-700">0.00 ج.م</span>
+          </div>
+        </div>
+
+        <!-- BUTTONS -->
+        <div class="p-2 bg-white border-t border-slate-200 grid grid-cols-2 gap-2 shrink-0">
+          <button onclick="sendKDS()" class="py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1"><i class="fa-solid fa-fire-burner text-amber-400"></i> إرسال للمطبخ</button>
+          <button onclick="openPay()" class="py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1 shadow-md shadow-emerald-600/30"><i class="fa-solid fa-wallet"></i> تحصيل الفاتورة</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 2: TABLES -->
+    <section id="v-tables" class="h-full hidden p-4 overflow-y-auto">
+      <div class="max-w-4xl mx-auto space-y-3">
+        <div class="bg-white p-3 rounded-2xl shadow-sm border flex justify-between items-center">
+          <div><h2 class="font-bold text-sm">طاولات الصالة</h2><p class="text-xs text-slate-400">اضغط على الطاولة لفتح طلب جديد</p></div>
+          <button onclick="addTable()" class="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg">+ إضافة طاولة</button>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3" id="tablesGrid"></div>
+      </div>
+    </section>
+
+    <!-- VIEW 3: KDS -->
+    <section id="v-kds" class="h-full hidden p-4 bg-slate-900 overflow-y-auto text-white">
+      <div class="max-w-4xl mx-auto space-y-3">
+        <div class="bg-slate-800 p-3 rounded-2xl border border-slate-700 flex justify-between items-center">
+          <h2 class="font-bold text-sm text-amber-400"><i class="fa-solid fa-bell-concierge"></i> شاشة المطبخ والتحضير</h2>
+          <span class="text-xs bg-slate-700 px-2 py-1 rounded" id="kdsTitleBadge">0 طلبات</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3" id="kdsGrid"></div>
+      </div>
+    </section>
+
+    <!-- VIEW 4: SHIFTS -->
+    <section id="v-shifts" class="h-full hidden p-4 overflow-y-auto">
+      <div class="max-w-3xl mx-auto space-y-3">
+        <div class="bg-white p-3 rounded-2xl shadow-sm border flex justify-between items-center">
+          <h2 class="font-bold text-sm">الوردية والخزينة اليومية</h2>
+          <button onclick="addExpense()" class="px-3 py-1.5 bg-rose-600 text-white text-xs font-bold rounded-lg"><i class="fa-solid fa-receipt"></i> تسجيل مصروف</button>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+          <div class="bg-white p-3 rounded-xl border shadow-sm"><p class="text-xs text-slate-400">عهدة البداية</p><h4 id="shfOpen" class="font-black text-sm mt-1">300.00 ج.م</h4></div>
+          <div class="bg-white p-3 rounded-xl border shadow-sm"><p class="text-xs text-slate-400">مبيعات كاش</p><h4 id="shfCash" class="font-black text-sm text-emerald-600 mt-1">0.00 ج.م</h4></div>
+          <div class="bg-white p-3 rounded-xl border shadow-sm"><p class="text-xs text-slate-400">مبيعات فيزا / إلكتروني</p><h4 id="shfCard" class="font-black text-sm text-blue-600 mt-1">0.00 ج.م</h4></div>
+          <div class="bg-white p-3 rounded-xl border shadow-sm"><p class="text-xs text-slate-400">مصروفات نثرية</p><h4 id="shfExp" class="font-black text-sm text-rose-600 mt-1">0.00 ج.م</h4></div>
+        </div>
+        <div class="bg-slate-900 text-white p-4 rounded-2xl flex justify-between items-center">
+          <div><p class="text-xs text-slate-400">الكاش المتوقع في الدرج الآن:</p><h3 id="shfExpected" class="text-2xl font-black text-emerald-400 mt-0.5">300.00 ج.م</h3></div>
+          <button onclick="closeShift()" class="px-4 py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl"><i class="fa-solid fa-lock"></i> تقفيل الوردية</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 5: REPORTS -->
+    <section id="v-reports" class="h-full hidden p-4 overflow-y-auto">
+      <div class="max-w-4xl mx-auto space-y-3">
+        <div class="bg-white p-3 rounded-2xl shadow-sm border flex justify-between items-center">
+          <h2 class="font-bold text-sm">تقارير المبيعات</h2>
+          <span id="repToday" class="text-xs font-bold text-emerald-700">0.00 ج.م إجمالي اليوم</span>
+        </div>
+        <div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
+          <table class="w-full text-right text-xs">
+            <thead class="bg-slate-50 border-b"><tr><th class="p-2.5">رقم الفاتورة</th><th class="p-2.5">الوقت</th><th class="p-2.5">النوع</th><th class="p-2.5">طريقة الدفع</th><th class="p-2.5">الإجمالي</th><th class="p-2.5 text-center">عرض</th></tr></thead>
+            <tbody id="repTable" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- PAYMENT POPUP -->
+  <div id="payModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-4 shadow-2xl space-y-3">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 class="font-black text-sm">تحصيل الفاتورة</h3>
+        <button onclick="closeMod('payModal')" class="text-slate-400 text-lg">&times;</button>
+      </div>
+      <div class="bg-slate-50 p-2.5 rounded-xl text-center border">
+        <p class="text-xs text-slate-500">المبلغ المطلوب:</p>
+        <h2 id="payReqTxt" class="text-2xl font-black text-emerald-700">0.00 ج.م</h2>
+      </div>
+      <div class="grid grid-cols-3 gap-2 text-center text-xs font-bold">
+        <button onclick="setPayMethod('cash')" id="pm-cash" class="p-2 rounded-xl border-2 border-emerald-500 bg-emerald-50 text-emerald-800">نقداً (كاش)</button>
+        <button onclick="setPayMethod('card')" id="pm-card" class="p-2 rounded-xl border text-slate-700">فيزا / ماستر</button>
+        <button onclick="setPayMethod('wallet')" id="pm-wallet" class="p-2 rounded-xl border text-slate-700">محفظة / إنستا</button>
+      </div>
+      <div id="cashBox" class="space-y-1.5 text-xs">
+        <div class="flex justify-between items-center">
+          <span>المستلم من العميل:</span>
+          <input type="number" id="recVal" oninput="calcChange()" class="w-24 border p-1 rounded font-bold text-center">
+        </div>
+        <div class="bg-amber-50 p-2 rounded-lg border border-amber-200 flex justify-between font-bold text-amber-900">
+          <span>الباقي للعميل:</span>
+          <span id="chgTxt" class="font-black">0.00 ج.م</span>
+        </div>
+      </div>
+      <button onclick="finishOrder()" class="w-full py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-xs shadow-md">تأكيد وطباعة الإيصال</button>
+    </div>
+  </div>
+
+  <!-- THERMAL RECEIPT PREVIEW (80mm) -->
+  <div id="recModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3">
+    <div class="bg-white rounded-2xl max-w-xs w-full p-4 shadow-2xl flex flex-col max-h-[90vh]">
+      <div class="flex justify-between pb-2 border-b"><span class="text-xs font-bold">إيصال كاشير 80mm</span><button onclick="closeMod('recModal')">&times;</button></div>
+      <div class="flex-1 overflow-y-auto py-2 font-mono text-[11px] leading-tight text-black" id="receiptArea"></div>
+      <div class="pt-2 border-t flex gap-2">
+        <button onclick="window.print()" class="flex-1 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-lg"><i class="fa-solid fa-print"></i> طباعة</button>
+        <button onclick="closeMod('recModal')" class="py-1.5 px-3 bg-slate-100 text-xs rounded-lg">إغلاق</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const S = {
+      type: 'dine_in', tbl: 1, disc: 0, cat: 'all', cart: [], payMeth: 'cash',
+      shift: { open: 300, cash: 0, card: 0, exp: 0 },
+      cats: [
+        { id: 'all', n: 'الكل', i: 'fa-border-all' },
+        { id: 'hot', n: 'مشروبات ساخنة', i: 'fa-mug-hot' },
+        { id: 'cold', n: 'مشروبات باردة', i: 'fa-glass-water' },
+        { id: 'food', n: 'سندوتشات ووجبات', i: 'fa-burger' },
+        { id: 'dessert', n: 'حلويات', i: 'fa-ice-cream' }
+      ],
+      items: [
+        { id: 1, n: 'إسبريسو دبل', c: 'hot', p: 35, i: 'fa-mug-saucer' },
+        { id: 2, n: 'كابتشينو إيطالي', c: 'hot', p: 50, i: 'fa-mug-hot' },
+        { id: 3, n: 'لاتيه كراميل مثلج', c: 'cold', p: 65, i: 'fa-glass-water-droplet' },
+        { id: 4, n: 'موهيتو فراولة', c: 'cold', p: 55, i: 'fa-wine-glass' },
+        { id: 5, n: 'سماش برجر دبل', c: 'food', p: 130, i: 'fa-burger' },
+        { id: 6, n: 'تشيكن كريسبي', c: 'food', p: 110, i: 'fa-drumstick-bite' },
+        { id: 7, n: 'بيتزا سوبر سوبريم', c: 'food', p: 150, i: 'fa-pizza-slice' },
+        { id: 8, n: 'وافل نوتيلا', c: 'dessert', p: 75, i: 'fa-cookie' }
+      ],
+      tables: [
+        { id: 1, n: 'طاولة 1', s: 'free' },
+        { id: 2, n: 'طاولة 2', s: 'busy', tot: 185 },
+        { id: 3, n: 'طاولة 3', s: 'free' },
+        { id: 4, n: 'طاولة VIP', s: 'free' }
+      ],
+      kds: [
+        { id: 'KOT-11', tbl: 'طاولة 2', typ: 'صالة', t: '01:30 م', items: ['2x كابتشينو', '1x سماش برجر'] }
+      ],
+      history: []
+    };
+
+    function tab(name) {
+      ['pos', 'tables', 'kds', 'shifts', 'reports'].forEach(x => document.getElementById('v-' + x).classList.add('hidden'));
+      document.getElementById('v-' + name).classList.remove('hidden');
+      document.querySelectorAll('.tab-btn').forEach(b => b.className = 'tab-btn px-2.5 py-1 rounded-lg text-slate-300 hover:text-white transition flex items-center gap-1.5');
+      document.getElementById('t-' + name).className = 'tab-btn px-2.5 py-1 rounded-lg bg-emerald-600 text-white transition flex items-center gap-1.5';
+      if (name === 'tables') renderTables();
+      if (name === 'kds') renderKDS();
+      if (name === 'shifts') renderShifts();
+      if (name === 'reports') renderReports();
+    }
+
+    function renderCats() {
+      document.getElementById('catBar').innerHTML = S.cats.map(c => `
+        <button onclick="setCat('${c.id}')" class="px-3 py-1 rounded-xl text-xs font-bold shrink-0 border ${S.cat === c.id ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-slate-100 text-slate-600 border-slate-200'}">
+          <i class="fa-solid ${c.i}"></i> ${c.n}
+        </button>
+      `).join('');
+    }
+    function setCat(c) { S.cat = c; renderCats(); renderItems(); }
+
+    function renderItems() {
+      const q = (document.getElementById('posSearch').value || '').toLowerCase();
+      const list = S.items.filter(i => (S.cat === 'all' || i.c === S.cat) && i.n.toLowerCase().includes(q));
+      document.getElementById('itemsGrid').innerHTML = list.map(i => `
+        <div onclick="addCart(${i.id})" class="bg-white border rounded-xl p-2.5 flex flex-col justify-between hover:border-emerald-500 cursor-pointer shadow-sm active:scale-95 transition">
+          <div class="flex justify-between items-start">
+            <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm"><i class="fa-solid ${i.i}"></i></div>
+            <span class="text-[10px] text-slate-400">#${i.id}</span>
+          </div>
+          <div class="mt-2">
+            <h4 class="font-bold text-xs text-slate-800 leading-tight">${i.n}</h4>
+            <p class="font-extrabold text-xs text-emerald-600 mt-1">${i.p} ج.م</p>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function addCart(id) {
+      const itm = S.items.find(x => x.id === id);
+      const ex = S.cart.find(x => x.id === id);
+      if (ex) ex.q++; else S.cart.push({ ...itm, q: 1 });
+      renderCart();
+    }
+
+    function updateQ(idx, d) {
+      S.cart[idx].q += d;
+      if (S.cart[idx].q <= 0) S.cart.splice(idx, 1);
+      renderCart();
+    }
+
+    function clearCart() {
+      if (S.cart.length && confirm('إفراغ السلة؟')) { S.cart = []; S.disc = 0; renderCart(); }
+    }
+
+    function renderCart() {
+      const el = document.getElementById('cartList');
+      if (!S.cart.length) {
+        el.innerHTML = '<div class="text-center py-10 text-slate-300 text-xs font-semibold"><i class="fa-solid fa-basket-shopping text-3xl mb-2"></i><p>السلة فارغة</p></div>';
+      } else {
+        el.innerHTML = S.cart.map((item, i) => `
+          <div class="bg-slate-50 border rounded-lg p-2 flex items-center justify-between gap-1 text-xs">
+            <div class="flex-1 min-w-0"><p class="font-bold truncate">${item.n}</p><p class="text-emerald-700 text-[10px]">${item.p} ج.م</p></div>
+            <div class="flex items-center gap-1 bg-white border rounded px-1">
+              <button onclick="updateQ(${i}, -1)" class="text-rose-500 font-bold px-1">-</button>
+              <span class="font-bold w-4 text-center">${item.q}</span>
+              <button onclick="updateQ(${i}, 1)" class="text-emerald-600 font-bold px-1">+</button>
+            </div>
+            <span class="font-bold w-12 text-left">${item.p * item.q}</span>
+          </div>
+        `).join('');
+      }
+      calcTotals();
+    }
+
+    function calcTotals() {
+      const sub = S.cart.reduce((s, x) => s + (x.p * x.q), 0);
+      const srv = (document.getElem
