@@ -6,6 +6,14 @@
   <meta name="theme-color" content="#047857">
   <meta name="description" content="شبكة ودليل الرعاية والخصم الطبي بمحافظة الفيوم - بطاقات العضوية الرقمية وخصومات العيادات والمعامل">
   <title>شبكة الرعاية والخصم الطبي - محافظة الفيوم</title>
+  <link rel="manifest" href="manifest.json">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js');
+    });
+  }
+</script>
   
   <!-- Google Fonts: Cairo -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
