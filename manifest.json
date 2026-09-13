@@ -1,0 +1,19 @@
+{
+  "name": "رعاية الفيوم - شبكة الخصم الطبي",
+  "short_name": "رعاية الفيوم",
+  "description": "دليل وبطاقات الخصم الطبي المباشر في عيادات ومعامل محافظة الفيوم",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#047857",
+  "theme_color": "#047857",
+  "dir": "rtl",
+  "lang": "ar",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2966/2966327.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
